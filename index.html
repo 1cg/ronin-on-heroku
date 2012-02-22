@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Running Gosu &amp; Ronin On Heroku's Cedar Stack</title>
+
+    <!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <link href="http://twitter.github.com/bootstrap/assets/css/bootstrap.css" rel="stylesheet">
+    <link href="http://twitter.github.com/bootstrap/assets/css/bootstrap-responsive.css" rel="stylesheet">
+    <link href="http://twitter.github.com/bootstrap/assets/js/google-code-prettify/prettify.css" rel="stylesheet">
+
+    <style>
+     p {
+	 		font-size:1.4em;
+	    line-height: 1.4em;
+     }
+     li {
+	 		font-size:1.4em;
+	    line-height: 1.4em;
+	    margin-bottom:10px;
+     }
+     body {
+			padding-top:60px;
+     }
+     #intro {
+		    margin-top:64px;
+     }
+     h2 {
+       margin-top:16px;
+       margin-bottom:8px;
+     }
+
+		 .container {
+		    margin-bottom:128px;
+		  }
+    </style>
+
+  </head>
+
+  <body>
+<a href="https://github.com/carsongross/ronin-on-heroku"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://a248.e.akamai.net/assets.github.com/img/abad93f42020b733148435e2cd92ce15c542d320/687474703a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f677265656e5f3030373230302e706e67" alt="Fork me on GitHub"></a>
+
+    <div class="container">
+
+      <center>
+	      <h1>Running Gosu &amp; Ronin On<br/> Heroku's Cedar Stack</h1>
+	      <hr width="40%">
+	    </center>
+      
+      <section id="intro">
+
+        <div class="page-header">
+          <h1>Heroku, Gosu &amp; Ronin</h1>
+        </div>
+
+				<p><a href="http://www.heroku.com/">Heroku</a> is one of the most popular and slickest ways to host web applications in the cloud.  It lets you scale up and down your server demands quickly and easily, and has <a href="https://addons.heroku.com/">a ton of useful Add-ons</a>.  In 2011, with it's Cedar stack, Heroku began supporting <a href="http://www.heroku.com/java">Java</a> and other JVM-based languages.</p>
+					
+			  <p><a href="http://gosu-lang.org">Gosu</a> is a JVM-based language created by <a href="http://www.guidewire.com">Guidewire</a>.  The excellent <a href="http://ronin-web.org">Ronin Web Framework</a> is built on top of Gosu.
+				
+				<p>This document will show you how to deploy and manage your Ronin application on Heroku.</p>
+				
+
+       </section> 
+
+      <section id="">
+
+        <div class="page-header">
+          <h1>Setup</h1>
+        </div>
+        
+        <h2>Step 1: Creating Your Ronin Application</h2>
+
+        <p>The first thing you will need to do is create a Ronin application.  Setup instructions can be found <a href="http://ronin-web.org/docs.html#installing">here</a>.</p>
+
+        <h2>Step 2: Heroku Configuration</h2>
+
+        <h3>Copy Dependencies</h3>
+
+        <p>Once you have a Ronin application created, you'll need to modify your <code>pom.xml</code>, by adding the following to the <code>plugins</code> section:</p>
+        <pre class="prettyprint lang-xml">
+  &lt;plugin>
+      &lt;groupId>org.apache.maven.plugins&lt;/groupId>
+      &lt;artifactId>maven-dependency-plugin&lt;/artifactId>
+      &lt;version>2.4&lt;/version>
+      &lt;executions>
+          &lt;execution>
+              &lt;id>copy-dependencies&lt;/id>
+              &lt;phase>package&lt;/phase>
+              &lt;goals>&lt;goal>copy-dependencies&lt;/goal>&lt;/goals>
+          &lt;/execution>
+      &lt;/executions>
+  &lt;/plugin></pre>
+	
+	      <p>This allows Heroku to properly resolve your dependencies for application launch</p>
+
+        <h3>Create a Procfile</h3>
+	      
+	      <p>Next you will need to create a Heroku <a href="http://devcenter.heroku.com/articles/procfile">Procfile</a> in your project's root directory with the following content:</p>
+	      <pre>
+  web:    java -Dronin.mode=prod -cp target/classes:src:target/dependency/* ronin.DevServer server-nodb $PORT .</pre>
+
+        <h3>Use Heroku's Postgres DB</h3>
+
+        <p>To use the <a href="https://postgres.heroku.com/">Postgres</a> database that Heroku provides, you'll need to add the Postgres driver as a dependency in your <code>pom.xml</code>.  Add the following to the <code>dependencies</code> section:<p>
+	<pre class="prettyprint">
+  &lt;dependency>
+    &lt;groupId>postgresql&lt;/groupId>
+    &lt;artifactId>postgresql&lt;/artifactId>
+    &lt;version>8.4-702.jdbc3&lt;/version>
+  &lt;/dependency></pre>
+
+<p>and make the following change in your <code>config.RoninConfig</code> class:</p>
+
+<pre class="prettyprint">
+  } else if( m == PRODUCTION ) {
+    db.model.Database.JdbcUrl = java.lang.System.getenv( "DATABASE_URL" )
+  }
+</pre>
+
+        <h2>Step 3: Creating a Git Repository</h2>
+				
+				<p>Heroku uses <a href="http://git-scm.com/">Git</a> as its deployment mechanism, so you will need to create a git repository for your application in order to push it to heroku</p>
+
+        <pre>
+  $ git init
+  Initialized empty Git repository in /Users/carson/Projects/heroku_example/.git/</pre>
+	      <p>Then you will need to add all your resources to the repository and commit them:</p>
+	      <pre>
+  $ git add build.vark pom.xml Procfile html src test
+  $ git commit</pre>
+
+        <h2>Step 4: Creating Your App On Heroku</h2>
+				
+				<p>Make sure you have <a href="http://devcenter.heroku.com/articles/java">Heroku installed</a> and run the following command:</p>
+        <pre>
+  $ heroku create --stack cedar
+    Creating sharp-cloud-6059... done, stack is cedar
+    http://sharp-cloud-6059.herokuapp.com/ | git@heroku.com:sharp-cloud-6059.git
+		Git remote heroku added</pre>
+		
+		    <p>You are now ready to deploy your Ronin application to Heroku with a simple Git push:</p>
+			  <pre>
+  $ git push heroku master</pre>
+		     
+		     <p>Heroku will receive your push and then publish your application, at which point you can browse to your applications URL.</p>
+			<p>Congratulations, you've just published your Ronin application on Heroku!</p>
+			</section>
+			
+			
+	
+	  </div> <!-- /container -->
+
+    <script src="http://twitter.github.com/bootstrap/assets/js/jquery.js"></script>
+    <script src="http://twitter.github.com/bootstrap/assets/js/google-code-prettify/prettify.js"></script>
+    <script src="http://twitter.github.com/bootstrap/assets/js/application.js"></script>
+    <script src="./js/site.js"></script>
+
+  </body>
+</html>
